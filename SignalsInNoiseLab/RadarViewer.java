@@ -17,7 +17,7 @@ public class RadarViewer
         // create the radar, set the monster location, and perform the initial scan
         final int ROWS = 100;
         final int COLS = 100;
-        Radar radar = new Radar(ROWS, COLS);
+        Radar radar = new Radar(ROWS, COLS, 1, 2);
         radar.setNoiseFraction(0.10);
         radar.scan();
         
@@ -45,7 +45,10 @@ public class RadarViewer
             
             radar.scan();
             
+            radar.setMonsterLocation();
+            
             frame.repaint();
+            
         }
     }
 

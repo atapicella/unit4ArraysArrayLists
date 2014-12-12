@@ -1,4 +1,3 @@
-import java.util.Scanner;
 
 /**
  * The model for radar scan and accumulator
@@ -6,7 +5,7 @@ import java.util.Scanner;
  * @author @gcschmit
  * @version 19 July 2014
  */
-public class Radar
+public class myRadar
 {
     
     // stores whether each cell triggered detection for the current scan of the radar
@@ -24,16 +23,10 @@ public class Radar
     
     // number of scans of the radar since construction
     private int numScans;
-
     //Maximum change in x
-    private int rowChangeThreshold = 5;
+    private int dXThreshold = 5;
     //Maximum change in y
-    private int colChangeThreshold = 5;
-    
-    private int dX;
-    
-    private int dY;
-    
+    private int dYThreshold = 5;
     
     /**
      * Constructor for objects of class Radar
@@ -41,35 +34,16 @@ public class Radar
      * @param   rows    the number of rows in the radar grid
      * @param   cols    the number of columns in the radar grid
      */
-    public Radar(int rows, int cols, int X, int Y)
+    public Radar(int rows, int cols)
     {
         // initialize instance variables
         currentScan = new boolean[rows][cols]; // elements will be set to false
         accumulator = new int[rows][cols]; // elements will be set to 0
         
-        Scanner scan = new Scanner(System.in);
-        System.out.println("Do you want to enter a starting position and velocity?(y/n)");
-        if (scan.next().equals("y"))
-        {
-           System.out.println("Enter a starting x position: ");
-           monsterLocationCol = scan.nextInt();
-           System.out.println("Enter a starting y position: ");
-           monsterLocationRow = scan.nextInt();
-           System.out.println("Enter a x velocity: ");
-           dX = scan.nextInt();
-           System.out.println("Enter a y velocity: ");
-           dY = scan.nextInt();
-        }       
-        else
-        {
-           // randomly set the location of the monster (can be explicity set through the
-           //  setMonsterLocation method
-           monsterLocationRow = (int)(Math.random() * rows);
-           monsterLocationCol = (int)(Math.random() * cols);
-           this.dX = dX;
-           this.dY = dY;
-        }
-        
+        // randomly set the location of the monster (can be explicity set through the
+        //  setMonsterLocation method
+        monsterLocationRow = (int)(Math.random() * rows);
+        monsterLocationCol = (int)(Math.random() * cols);
         
         noiseFraction = 0.05;
         numScans= 0;
@@ -93,9 +67,8 @@ public class Radar
         // detect the monster
         currentScan[monsterLocationRow][monsterLocationCol] = true;
         
-        
         // inject noise into the grid
-        //injectNoise();
+        injectNoise();
         
         // udpate the accumulator
         for(int row = 0; row < currentScan.length; row++)
@@ -120,19 +93,14 @@ public class Radar
      * @param   col     the column in which the monster is located
      * @pre row and col must be within the bounds of the radar grid
      */
-    public void setMonsterLocation()//int row, int col)
+    public void setMonsterLocation(int row, int col)
     {
         // remember the row and col of the monster's location
-        currentScan[monsterLocationRow][monsterLocationCol] = false;
-        monsterLocationRow += dY;
-        monsterLocationCol += dX;
-        
-        
-        //monsterLocationRow = row;
-        //monsterLocationCol = col;
+        monsterLocationRow = row;
+        monsterLocationCol = col;
         
         // update the radar grid to show that something was detected at the specified location
-        //currentScan[row][col] = true;
+        currentScan[row][col] = true;
     }
     
      /**
