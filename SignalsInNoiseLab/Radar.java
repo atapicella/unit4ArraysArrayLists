@@ -11,6 +11,8 @@ public class Radar
     
     // stores whether each cell triggered detection for the current scan of the radar
     private boolean[][] currentScan;
+    //stores the currentScan array from the previous iteration
+    private boolean[][] prevScan;
     
     // value of each cell is incremented for each scan in which that cell triggers detection 
     private int[][] accumulator;
@@ -29,10 +31,17 @@ public class Radar
     private int rowChangeThreshold = 5;
     //Maximum change in y
     private int colChangeThreshold = 5;
-    
+    //change in x position
     private int dX;
-    
+    //change in y position
     private int dY;
+    //multipliers to handle negative dx and/or dy
+    private int xMultiplier;
+    private int yMultiplier;
+    
+    //counts to determine value of multiplier
+    private int xCount = 0;
+    private int yCount = 0;
     
     
     /**
@@ -40,15 +49,19 @@ public class Radar
      * 
      * @param   rows    the number of rows in the radar grid
      * @param   cols    the number of columns in the radar grid
+     * @param   dX      change in X
+     * @param   dY      change in Y
      */
-    public Radar(int rows, int cols, int X, int Y)
+    public Radar(int rows, int cols, int dX, int dY)
     {
         // initialize instance variables
         currentScan = new boolean[rows][cols]; // elements will be set to false
+        prevScan = new boolean[rows][cols]; // elements will be set to false
         accumulator = new int[rows][cols]; // elements will be set to 0
         
         Scanner scan = new Scanner(System.in);
         System.out.println("Do you want to enter a starting position and velocity?(y/n)");
+        //lets user set starting position and dx/dy if they choose "y"
         if (scan.next().equals("y"))
         {
            System.out.println("Enter a starting x position: ");
@@ -56,10 +69,11 @@ public class Radar
            System.out.println("Enter a starting y position: ");
            monsterLocationRow = scan.nextInt();
            System.out.println("Enter a x velocity: ");
-           dX = scan.nextInt();
+           this.dX = scan.nextInt();
            System.out.println("Enter a y velocity: ");
-           dY = scan.nextInt();
-        }       
+           this.dY = scan.nextInt();
+        }     
+        //If user chooses "n" starting position is random and dx/dy is set through constructor parameters
         else
         {
            // randomly set the location of the monster (can be explicity set through the
@@ -71,7 +85,7 @@ public class Radar
         }
         
         
-        noiseFraction = 0.05;
+        noiseFraction = .05;
         numScans= 0;
     }
     
@@ -79,39 +93,154 @@ public class Radar
      * Performs a scan of the radar. Noise is injected into the grid and the accumulator is updated.
      * 
      */
-    public void scan()
+    public boolean scan()
     {
-        // zero the current scan grid
-        for(int row = 0; row < currentScan.length; row++)
-        {
-            for(int col = 0; col < currentScan[0].length; col++)
-            {
-                currentScan[row][col] = false;
-            }
+       // zero the current scan grid
+       for(int row = 0; row < currentScan.length; row++)
+       {
+           for(int col = 0; col < currentScan[0].length; col++)
+           {
+               currentScan[row][col] = false;
+           }
+       }
+       
+       //sets the monster location and updates it based on dy/dx
+       setMonsterLocation();
+       
+       // inject noise into the grid
+       injectNoise();
+       
+       if (numScans > 0)
+       {
+           accumulate();
         }
         
-        // detect the monster
-        currentScan[monsterLocationRow][monsterLocationCol] = true;
-        
-        
-        // inject noise into the grid
-        //injectNoise();
-        
-        // udpate the accumulator
-        for(int row = 0; row < currentScan.length; row++)
-        {
-            for(int col = 0; col < currentScan[0].length; col++)
-            {
-                if(currentScan[row][col] == true)
+       //copies elements of currentScan to prevScan
+       for(int row = 0; row < currentScan.length; row++)
+       {
+           for(int col = 0; col < currentScan[0].length; col++)
+           {
+               if (currentScan[row][col] == true)
+               {
+                   prevScan[row][col] = true;
+                }
+                else
                 {
-                   accumulator[row][col]++;
+                    prevScan[row][col] = false;
+                }
+           }
+       }
+           
+           
+       // keep track of the total number of scans
+       numScans++;
+       
+       //checks if monster is about to go off radar
+       if (monsterLocationRow>=99 || monsterLocationRow<=1 || monsterLocationCol>=99 || monsterLocationCol<=1)
+        {
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+    }
+    
+    /**
+     * tracks each possible velocity and stores the number of times it occurs
+     */
+    public void accumulate()
+    {
+       for(int row = 0; row < currentScan.length; row++)
+       {
+           for(int col = 0; col < currentScan[0].length; col++)
+           {
+               for(int row2 = 0; row2 < prevScan.length; row2++)
+               {
+                    for(int col2 = 0; col2 < prevScan[0].length; col2++)
+                    {
+                        //sets the possible x and y velocity for this iteration
+                        int velY = row2-row;
+                        int velX = col2-col;
+                        
+                        
+                        if(currentScan[row][col] == true && prevScan[row2][col2] == true && velX<=5 && velY<=5 && velX>=-5 && velY>=-5)
+                        {
+                            //updates counter and makes velocity positive
+                            if (velY<0)
+                            {
+                                yCount -= 1;
+                                velY = Math.abs(velY);
+                            }
+                            else
+                            {
+                                yCount += 1;
+                            }
+                            //updates counter and makes velocity positive
+                            if (velX<0)
+                            {
+                                xCount -= 1;
+                                velX = Math.abs(velX);
+                            }
+                            else
+                            {
+                                xCount += 1;
+                            }
+                            //increases if this is a possible velocity
+                            accumulator[velY][velX]++;
+                        }
+                    }
+               }
+           } 
+        }
+        
+      //sets the multiplier based on the sign of the count
+      if (xCount<0)
+      {
+          this.xMultiplier = 1;
+       }
+      else
+      {
+          this.xMultiplier = -1;
+        }
+      //sets the multiplier based on the sign of the count
+      if (yCount<0)
+      {
+          this.yMultiplier = 1;
+       }
+      else
+      {
+          this.yMultiplier = -1;
+        }
+    
+           
+       
+    }
+    /**
+     * calculates the velocity based on which one occured most in the accumulator
+     */
+    public String findVelocity()
+    {
+        //tracks the highest x and y velocity
+        int highestValRow = 0;
+        int highestValCol = 0;
+        //finds the highest x and y velocity
+        for(int row = 1; row < accumulator.length; row++)
+        {
+            for(int col = 1; col < accumulator[0].length; col++)
+            {
+                if (accumulator[row][col]>accumulator[highestValRow][highestValCol])
+                {
+                    highestValRow = row;
+                    highestValCol = col;
                 }
             }
         }
+        //returns out dx and dy
+        return "The monsters dx is: " + (highestValCol*this.yMultiplier) + "\nThe monsters dy is: " + (highestValRow*this.xMultiplier);
         
-        // keep track of the total number of scans
-        numScans++;
     }
+    
 
     /**
      * Sets the location of the monster
@@ -122,18 +251,20 @@ public class Radar
      */
     public void setMonsterLocation()//int row, int col)
     {
-        // remember the row and col of the monster's location
+        //sets current position to false
         currentScan[monsterLocationRow][monsterLocationCol] = false;
+        //updates position
         monsterLocationRow += dY;
         monsterLocationCol += dX;
-        
-        
-        //monsterLocationRow = row;
-        //monsterLocationCol = col;
-        
-        // update the radar grid to show that something was detected at the specified location
-        //currentScan[row][col] = true;
+        //exits method if monster will be off radar
+        if (monsterLocationRow>99 || monsterLocationRow<1 || monsterLocationCol>99 || monsterLocationCol<1)
+        {
+            return;
+        }
+        //re-set monster with new position
+        currentScan[monsterLocationRow][monsterLocationCol] = true;
     }
+    
     
      /**
      * Sets the probability that a given cell will generate a false detection
